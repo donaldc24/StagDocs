@@ -1,4 +1,4 @@
-package com.example.stagdocs;
+package com.stagdocs;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
