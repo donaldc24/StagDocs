@@ -1,4 +1,4 @@
-package com.example.stagdocs;
+package com.stagdocs;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
