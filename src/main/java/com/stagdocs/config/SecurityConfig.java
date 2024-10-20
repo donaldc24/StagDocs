@@ -1,18 +1,25 @@
 package com.stagdocs.config;
 
 import com.stagdocs.service.UserDetailsAuthorizeService;
+import com.stagdocs.utils.JwtRequestFilter;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 import static org.springframework.security.config.Customizer.withDefaults;
 
@@ -20,7 +27,11 @@ import static org.springframework.security.config.Customizer.withDefaults;
 @EnableWebSecurity
 public class SecurityConfig {
 
+    @Autowired
     private final UserDetailsAuthorizeService userDetailsAuthorizeService;
+
+    @Autowired
+    private JwtRequestFilter jwtRequestFilter;
 
     public SecurityConfig(UserDetailsAuthorizeService userDetailsAuthorizeService) {
         this.userDetailsAuthorizeService = userDetailsAuthorizeService;
@@ -29,26 +40,34 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+                .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests((requests) -> requests
-                        .requestMatchers("/api/healthcheck").permitAll()
-                        .anyRequest().hasRole("ADMIN")
+                        .requestMatchers("/api/healthcheck", "/api/authenticate").permitAll()
+                        .anyRequest().authenticated()
                 )
-                .formLogin(form -> form
-                        .successHandler(customSuccessHandler())
+                .sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
                 .httpBasic(withDefaults());
+
+        http.addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
 
-    @Bean
-    public AuthenticationSuccessHandler customSuccessHandler() {
-        return new SimpleUrlAuthenticationSuccessHandler("/check/login");
-    }
+//    @Bean
+//    public AuthenticationSuccessHandler customSuccessHandler() {
+//        return new SimpleUrlAuthenticationSuccessHandler("/check/login");
+//    }
 
     @Bean
     public UserDetailsService userDetailsService() {
         return userDetailsAuthorizeService;
+    }
+
+    @Bean
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration) throws Exception {
+        return authenticationConfiguration.getAuthenticationManager();
     }
 
     @Bean
@@ -58,7 +77,6 @@ public class SecurityConfig {
         authProvider.setPasswordEncoder(passwordEncoder());
         return authProvider;
     }
-
 
     @Bean
     public PasswordEncoder passwordEncoder() {
